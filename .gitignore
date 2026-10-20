@@ -221,3 +221,6 @@ __marimo__/
 
 
 experiments/*.png
+# 私人规划文档，不上传
+docs/01_*.md
+docs/02_*.md

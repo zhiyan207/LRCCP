@@ -224,3 +224,9 @@ experiments/*.png
 # 私人规划文档，不上传
 docs/01_*.md
 docs/02_*.md
+
+# 本机编辑器配置（含绝对路径），不上传
+.vscode/
+
+# 训练输出（checkpoint、日志），不上传
+runs/

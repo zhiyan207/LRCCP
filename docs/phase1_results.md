@@ -58,7 +58,10 @@ lpp_lr = 3e-3, averaged over 3 seeds. b is the block size of the level; the last
 | range | 0.170 | 0.152 | 0.156 | 0.181 | 0.215 | 0.246 | 0.285 | 0.319 | 0.223 |
 | Doppler | 0.140 | 0.134 | 0.149 | 0.166 | 0.193 | 0.204 | 0.198 | — | 0.172 |
 
-Drift grows from the inner levels to the outer ones, but not monotonically: in range, b = 2 is above b = 4 and 8; in Doppler, b = 128 is slightly below b = 64. The cause has not been tested.
+Drift grows from the inner levels to the outer ones, but not monotonically: in range, b = 2 is above b = 4 and 8; in Doppler, b = 128 is slightly below b = 64. The cause has not been tested. Two hypotheses:
+
+- **A: gradient decay.** Backpropagation goes from the loss through the b = 256 level first, then inward level by level to b = 2. The gradient may get smaller at each level, so the outer levels get large gradients and move far, while the inner levels get small ones and barely move. Test: at the start of training, print the gradient norm of each level's parameters and check whether it decreases from outer to inner.
+- **B: the inner levels are the skeleton.** The b = 2 level has coefficients ±1 and does the most basic step, adding and subtracting; it is the structure of the whole transform. The outer levels have finer twiddles, and changing them adjusts the details of the frequency resolution. Changing details is cheap and moving the skeleton is costly, so the network moves the cheap part first. Test: freeze the outer levels and train only the inner ones (or the other way round), and see how accuracy and drift change.
 
 ### Conclusion
 

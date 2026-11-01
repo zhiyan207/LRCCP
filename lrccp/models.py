@@ -1,13 +1,14 @@
 import torch, torch.nn as nn, torch.nn.functional as F
-from .transforms import DFT
+from .transforms import DFT, Butterfly
 
 class DT2DCNN(nn.Module):
     """CubeLearn 的 DT_2DCNN，第一层换成自己的 DFT。
     trainable=False → Baseline 1（固定 FFT）；True → Baseline 2（可学习稠密）。"""
-    def __init__(self, trainable=False):
+    def __init__(self, trainable=False, transform='dft'):
         super().__init__()
-        self.range_dft   = DFT(256, trainable=trainable, centered=False)                       # 空 1：256 点，沿 sample 轴
-        self.doppler_dft = DFT(128, trainable=trainable, centered=True)                       # 空 2：128 点，零频居中
+        T = {'dft': DFT, 'butterfly': Butterfly}[transform]
+        self.range_dft   = T(256, trainable=trainable)                       # 空 1：256 点，沿 sample 轴
+        self.doppler_dft = T(128, trainable=trainable, centered=True)                       # 空 2：128 点，零频居中
         self.conv1 = nn.Conv2d(1, 4, 3);  self.bn1 = nn.BatchNorm2d(4)
         self.conv2 = nn.Conv2d(4, 8, 3);  self.bn2 = nn.BatchNorm2d(8)
         self.conv3 = nn.Conv2d(8, 16, 3); self.bn3 = nn.BatchNorm2d(16)

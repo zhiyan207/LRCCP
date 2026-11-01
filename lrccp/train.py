@@ -29,6 +29,7 @@ def run_epoch(model, loader, device, optimizer=None):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--trainable', action='store_true')
+    p.add_argument('--transform', default='dft')
     p.add_argument('--seed', type=int, default=0)
     p.add_argument('--epochs', type=int, default=30)
     p.add_argument('--lpp_lr', type=float, default=1e-3)
@@ -42,7 +43,7 @@ def main():
     loaders = {s: DataLoader(HGR(s), batch_size=32, shuffle=(s == 'train'), num_workers=0)
                for s in ['train', 'val', 'test', 'outset']}
 
-    model = DT2DCNN(trainable=args.trainable).to(device)
+    model = DT2DCNN(trainable=args.trainable, transform=args.transform).to(device)
     dft_params  = list(model.range_dft.parameters()) + list(model.doppler_dft.parameters())
     dft_ids     = {id(p) for p in dft_params}
     base_params = [p for p in model.parameters() if id(p) not in dft_ids]

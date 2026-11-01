@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')        # WSL 没显示器，画完存成图片
+matplotlib.use('Agg')        # no display on WSL, so save the plot to a file
 import matplotlib.pyplot as plt
 import os
 

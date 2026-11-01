@@ -1,7 +1,7 @@
 import torch, torch.nn as nn
 
 def butterfly_level(x, w, b):
-    """一级蝶形。x: (..., N)；w: (N/b, 2, 2, b/2)。返回 (..., N)。"""
+    """One butterfly level. x: (..., N); w: (N/b, 2, 2, b/2). Returns (..., N)."""
     N = x.shape[-1]
     xp = x.reshape(*x.shape[:-1], N // b, 2, b // 2)
     top, bot = xp[..., 0, :], xp[..., 1, :]
@@ -10,7 +10,7 @@ def butterfly_level(x, w, b):
     return torch.stack([y_top, y_bot], dim=-2).reshape(*x.shape[:-1], N)
 
 def fft_weights(N, b):
-    """b 点蝶形那一级的 FFT 系数，复制到 N/b 个块。返回 (N/b, 2, 2, b/2)。"""
+    """FFT coefficients of the b-point butterfly level, copied into N/b blocks. Returns (N/b, 2, 2, b/2)."""
     i = torch.arange(b // 2)
     tw = torch.exp(-1j * 2 * torch.pi * i / b)
     ones = torch.ones(b // 2, dtype=torch.complex64)
@@ -22,28 +22,28 @@ def bit_reversal(N):
     return torch.tensor([int(f'{k:0{bits}b}'[::-1], 2) for k in range(N)])
 
 class Butterfly(nn.Module):
-    """沿最后一维的 radix-2 蝶形变换，log2(n) 级，每级 2n 个复数参数。
-    FFT 系数初始化。trainable=False 就等于 FFT；True 是可学习蝶形。接口同 DFT。"""
+    """Radix-2 butterfly transform along the last dim: log2(n) levels, 2n complex parameters per level.
+    Initialized to the FFT coefficients. trainable=False is exactly the FFT; True is a learnable butterfly. Same interface as DFT."""
     def __init__(self, n, trainable=False, centered=False):
         super().__init__()
         self.n, self.centered = n, centered
-        self.levels = [2 ** k for k in range(1, n.bit_length())]                      # 空 1：b 从 2 到 n 每级一个 b，存成普通 list，forward 要用
+        self.levels = [2 ** k for k in range(1, n.bit_length())]                      # one b per level, from 2 to n, kept as a plain list for forward
         self.W = nn.ParameterList([
-            nn.Parameter(fft_weights(n, b), requires_grad=trainable)                                 # 空 2：每级一个 Parameter，用 fft_weights(n, b) 初始化，requires_grad=trainable
+            nn.Parameter(fft_weights(n, b), requires_grad=trainable)                                 # one Parameter per level, initialized with fft_weights(n, b), requires_grad=trainable
             for b in self.levels])
-        self.register_buffer('perm', bit_reversal(n))   # 置换不是参数，但要跟着模型一起 .to(device)
+        self.register_buffer('perm', bit_reversal(n))   # the permutation isn't a parameter, but it has to move with the model on .to(device)
 
     def forward(self, x):                          # x: (..., n) complex64
-        x = x[..., self.perm]                                 # 空 3：bit-reversal
+        x = x[..., self.perm]                                 # bit-reversal
         for b, w in zip(self.levels, self.W):
-            x = butterfly_level(x, w, b)                             # 空 4
+            x = butterfly_level(x, w, b)
         if self.centered:
-            x = torch.fft.fftshift(x, dim=-1)                             # 空 5
+            x = torch.fft.fftshift(x, dim=-1)
         return x
 
 class DFT(nn.Module):
-    """沿最后一维做 n 点 DFT。trainable=False 就是固定 FFT (Baseline 1), 
-    True 就是从 DFT 出发的可学习稠密复数层 (Baseline 2)"""
+    """n-point DFT along the last dim. trainable=False is the fixed FFT,
+    True is a learnable dense complex layer initialized to the DFT (as in CubeLearn)."""
     def __init__(self, n, trainable=False, centered=False):
         super().__init__()
         k = torch.arange(n)

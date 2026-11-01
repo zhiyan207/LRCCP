@@ -18,7 +18,7 @@ for u in range(N_U):
         for s in range(N_S):
             i = u * 360 + g * 30 + s
             a = np.load(os.path.join(SRC, f'{u}_{g}_{s}.npy'), mmap_mode='r')
-            data[i] = a[0, :, :, ANT, :] + 1j * a[1, :, :, ANT, :]                             # 天线 ANT 的 I + jQ，shape (10,128,256)
+            data[i] = a[0, :, :, ANT, :] + 1j * a[1, :, :, ANT, :]                             # I + jQ of antenna ANT, shape (10,128,256)
             meta[i] = [u, g, s]
             if i % 100 == 0:
                 print(f'{i}/{N}  {time.perf_counter()-t0:.0f}s', flush=True)

@@ -221,12 +221,13 @@ __marimo__/
 
 
 experiments/*.png
-# 私人规划文档，不上传
+# Private planning docs, not pushed
 docs/01_*.md
 docs/02_*.md
 
-# 本机编辑器配置（含绝对路径），不上传
+# Local editor config (contains absolute paths), not pushed
 .vscode/
 
-# 训练输出（checkpoint、日志），不上传
+# Training output (checkpoints, logs), not pushed
 runs/
+*.pt

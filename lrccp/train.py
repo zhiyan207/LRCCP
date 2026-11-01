@@ -6,12 +6,12 @@ from .models import DT2DCNN
 
 
 def run_epoch(model, loader, device, optimizer=None):
-    """跑一遍 loader。给 optimizer 就是训练，不给就是评估。返回 (平均 loss, accuracy)。"""
+    """One pass over loader. Trains if an optimizer is given, otherwise evaluates. Returns (mean loss, accuracy)."""
     train = optimizer is not None
-    model.train(train)                       # True → train 模式，False → eval 模式
+    model.train(train)                       # True → train mode, False → eval mode
     crit = nn.CrossEntropyLoss()
     tot_loss, tot_correct, n = 0.0, 0, 0
-    with torch.set_grad_enabled(train):      # 评估时不算梯度，省显存
+    with torch.set_grad_enabled(train):      # no gradients during eval, saves GPU memory
         for x, y in loader:
             x, y = x.to(device), y.to(device)
             out = model(x)
@@ -64,7 +64,7 @@ def main():
     with open(os.path.join(args.out, 'log.csv'), 'w', newline='') as f:
         w = csv.writer(f); w.writerow(['epoch', 'train_loss', 'train_acc', 'val_loss', 'val_acc']); w.writerows(log)
 
-    # 最后：读回最佳模型，test 和 outset 各跑一次，只跑一次
+    # finally: reload the best model and run test and outset once each, and only once
     model.load_state_dict(torch.load(os.path.join(args.out, 'best.pt')))
     for s in ['test', 'outset']:
         loss, acc = run_epoch(model, loaders[s], device)

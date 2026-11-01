@@ -2,13 +2,14 @@ import torch, torch.nn as nn, torch.nn.functional as F
 from .transforms import DFT, Butterfly
 
 class DT2DCNN(nn.Module):
-    """CubeLearn 的 DT_2DCNN，第一层换成自己的 DFT。
-    trainable=False → Baseline 1（固定 FFT）；True → Baseline 2（可学习稠密）。"""
+    """CubeLearn's DT_2DCNN with the first layer replaced by our own transform.
+    transform='dft':       trainable=False → fixed FFT; True → learnable dense complex layer (CubeLearn)
+    transform='butterfly': trainable=False → FFT (butterfly-factorized, identical output); True → learnable butterfly (ours)"""
     def __init__(self, trainable=False, transform='dft'):
         super().__init__()
         T = {'dft': DFT, 'butterfly': Butterfly}[transform]
-        self.range_dft   = T(256, trainable=trainable)                       # 空 1：256 点，沿 sample 轴
-        self.doppler_dft = T(128, trainable=trainable, centered=True)                       # 空 2：128 点，零频居中
+        self.range_dft   = T(256, trainable=trainable)                       # 256 points, along the sample axis
+        self.doppler_dft = T(128, trainable=trainable, centered=True)                       # 128 points, zero frequency centered
         self.conv1 = nn.Conv2d(1, 4, 3);  self.bn1 = nn.BatchNorm2d(4)
         self.conv2 = nn.Conv2d(4, 8, 3);  self.bn2 = nn.BatchNorm2d(8)
         self.conv3 = nn.Conv2d(8, 16, 3); self.bn3 = nn.BatchNorm2d(16)
@@ -18,13 +19,13 @@ class DT2DCNN(nn.Module):
         self.fc3 = nn.Linear(128, 12)
 
     def forward(self, x):                               # (B, 10, 128, 256, 2) float32
-        x = torch.view_as_complex(x.contiguous())                                      # 空 3：变回 complex64
+        x = torch.view_as_complex(x.contiguous())                                      # back to complex64
         x = self.range_dft(x)                           # (B, 10, 128, 256)
-        x = x.transpose(-1, -2)                                      # 空 4：chirp 轴转到最后
+        x = x.transpose(-1, -2)                                      # move the chirp axis last
         x = self.doppler_dft(x)                         # (B, 10, 256, 128)
-        x = torch.abs(x)                                      # 空 5：取模，变实数
-        x = x.sum(dim=2)                                      # 空 6：sum 掉 range 轴 → (B, 10, 128)
-        x = x.reshape(-1, 1, 10, 128)                   # 加一个 channel 维给 Conv2d
+        x = torch.abs(x)                                      # take the magnitude, now real
+        x = x.sum(dim=2)                                      # sum out the range axis → (B, 10, 128)
+        x = x.reshape(-1, 1, 10, 128)                   # add a channel dim for Conv2d
         for conv, bn in [(self.conv1, self.bn1), (self.conv2, self.bn2), (self.conv3, self.bn3)]:
             x = self.pool(F.relu(bn(conv(x))))
         x = x.reshape(x.shape[0], -1)                   # (B, 960)

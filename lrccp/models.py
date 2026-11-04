@@ -5,11 +5,11 @@ class DT2DCNN(nn.Module):
     """CubeLearn's DT_2DCNN with the first layer replaced by our own transform.
     transform='dft':       trainable=False → fixed FFT; True → learnable dense complex layer (CubeLearn)
     transform='butterfly': trainable=False → FFT (butterfly-factorized, identical output); True → learnable butterfly (ours)"""
-    def __init__(self, trainable=False, transform='dft'):
+    def __init__(self, trainable=False, transform='dft', init='fft'):
         super().__init__()
         T = {'dft': DFT, 'butterfly': Butterfly}[transform]
-        self.range_dft   = T(256, trainable=trainable)                       # 256 points, along the sample axis
-        self.doppler_dft = T(128, trainable=trainable, centered=True)                       # 128 points, zero frequency centered
+        self.range_dft   = T(256, trainable=trainable, init=init)                       # 256 points, along the sample axis
+        self.doppler_dft = T(128, trainable=trainable, centered=True, init=init)                       # 128 points, zero frequency centered
         self.conv1 = nn.Conv2d(1, 4, 3);  self.bn1 = nn.BatchNorm2d(4)
         self.conv2 = nn.Conv2d(4, 8, 3);  self.bn2 = nn.BatchNorm2d(8)
         self.conv3 = nn.Conv2d(8, 16, 3); self.bn3 = nn.BatchNorm2d(16)

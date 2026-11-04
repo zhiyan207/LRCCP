@@ -17,6 +17,14 @@ def fft_weights(N, b):
     w = torch.stack([torch.stack([ones, tw]), torch.stack([ones, -tw])])   # (2, 2, b/2)
     return w.unsqueeze(0).repeat(N // b, 1, 1, 1)
 
+def init_weights(N, b, init):
+    """Initial coefficients of the b-point level: the FFT ones, or random with the same shape (N/b, 2, 2, b/2)."""
+    if init == 'fft':
+        return fft_weights(N, b)
+    if init != 'random':
+        raise ValueError(init)
+    return torch.randn(N // b, 2, 2, b // 2, dtype=torch.complex64) / 2 ** 0.5
+
 def bit_reversal(N):
     bits = N.bit_length() - 1
     return torch.tensor([int(f'{k:0{bits}b}'[::-1], 2) for k in range(N)])
@@ -24,12 +32,12 @@ def bit_reversal(N):
 class Butterfly(nn.Module):
     """Radix-2 butterfly transform along the last dim: log2(n) levels, 2n complex parameters per level.
     Initialized to the FFT coefficients. trainable=False is exactly the FFT; True is a learnable butterfly. Same interface as DFT."""
-    def __init__(self, n, trainable=False, centered=False):
+    def __init__(self, n, trainable=False, centered=False, init='fft'):
         super().__init__()
         self.n, self.centered = n, centered
         self.levels = [2 ** k for k in range(1, n.bit_length())]                      # one b per level, from 2 to n, kept as a plain list for forward
         self.W = nn.ParameterList([
-            nn.Parameter(fft_weights(n, b), requires_grad=trainable)                                 # one Parameter per level, initialized with fft_weights(n, b), requires_grad=trainable
+            nn.Parameter(init_weights(n, b, init), requires_grad=trainable)                                 # one Parameter per level, initialized with init_weights(n, b, init), requires_grad=trainable
             for b in self.levels])
         self.register_buffer('perm', bit_reversal(n))   # the permutation isn't a parameter, but it has to move with the model on .to(device)
 
@@ -44,12 +52,16 @@ class Butterfly(nn.Module):
 class DFT(nn.Module):
     """n-point DFT along the last dim. trainable=False is the fixed FFT,
     True is a learnable dense complex layer initialized to the DFT (as in CubeLearn)."""
-    def __init__(self, n, trainable=False, centered=False):
+    def __init__(self, n, trainable=False, centered=False, init='fft'):
         super().__init__()
         k = torch.arange(n)
         if centered:
             k = (k + n // 2) % n            
         W = torch.exp(-2j * torch.pi * k[:, None] * torch.arange(n)[None, :] / n).to(torch.complex64)
+        if init == 'random':
+            W = torch.randn(n, n, dtype=torch.complex64) / n ** 0.5
+        elif init != 'fft':
+            raise ValueError(init)
         self.W = nn.Parameter(W, requires_grad=trainable)
 
     def forward(self, x):                 # x: (..., n) complex64

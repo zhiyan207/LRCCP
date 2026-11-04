@@ -126,3 +126,5 @@ python -m experiments.grad_per_level
 ```
 
 The last two lines of each `.log` are the test and outset accuracy. The first two training commands were written afterwards to match the current `train.py`: the fixed-FFT and 3e-4 batches were run before `--lpp_lr` existed, when all parameters shared one learning rate of 3e-4. That is mathematically the same as the current setup, but training is not deterministic, so a rerun will not reproduce the numbers digit for digit.
+
+`log.csv` now has two more columns, `range_drift` and `doppler_drift`, and each run also writes `drift_levels.csv` with the drift of every level after every epoch. `--init random` is the switch for the initialization ablation.
